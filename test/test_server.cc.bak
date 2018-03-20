@@ -1,0 +1,64 @@
+#include "TcpServer.h"
+#include "Threadpool.h"
+#include <iostream>
+using std::cout;
+using std::endl;
+
+
+SM::Threadpool * pThreadpool = NULL;
+
+class Task
+{
+public:
+	Task(const std::string & query,
+		 SM::TcpConnectionPtr conn)
+	: _query(query)
+	, _conn(conn)
+	{}
+
+	void process()
+	{
+		
+		_conn->sendInLoop(_query);
+	}
+private:
+	std::string _query;
+	SM::TcpConnectionPtr _conn;
+};
+
+void onConnection(const SM::TcpConnectionPtr &conn)
+{
+	cout << conn->toString() << endl;
+    conn->send("hello, welcome to Chat Server.\r\n");
+}
+
+void onMessage(const SM::TcpConnectionPtr &conn)
+{
+    std::string s(conn->receive());  
+	
+	//在这里构建任务  并添加到threadpool中  完成IO线程到计算线程中过渡
+	Task task(s, conn);
+	pThreadpool->addTask(std::bind(&Task::process, task));
+}
+
+void onClose(const SM::TcpConnectionPtr &conn)
+{
+    printf("%s close\n", conn->toString().c_str());
+}
+
+int main(void)
+{
+	SM::Threadpool threadpool(4, 10);
+	threadpool.start();
+	
+	pThreadpool = &threadpool;
+
+	SM::TcpServer tcpserver("192.168.78.128", 6666);
+	tcpserver.setConnectionCallback(&onConnection);
+	tcpserver.setMessageCallback(&onMessage);
+	tcpserver.setCloseCallback(&onClose);
+
+	tcpserver.start();
+
+    return 0;
+}

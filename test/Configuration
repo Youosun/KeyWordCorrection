@@ -1,0 +1,5 @@
+DICTDIR ./
+DICTNAME dictionary
+INDEXDIR ./
+INDEXNAME index
+YULIAODIR ../yuliao/
